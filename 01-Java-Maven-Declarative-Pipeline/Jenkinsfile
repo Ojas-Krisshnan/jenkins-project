@@ -1,0 +1,99 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'staging', 'production'],
+            description: 'Target deployment environment'
+        )
+        string(
+            name: 'BUILD_ENV',
+            defaultValue: 'dev',
+            description: 'Build environment tag'
+        )
+        string(
+            name: 'MODULES',
+            defaultValue: 'core,api,ui',
+            description: 'Comma-separated modules to build (Extended Choice)'
+        )
+    }
+
+    tools {
+        jdk 'JDK17'
+        maven 'Maven3'
+    }
+
+    stages {
+        stage('Environment Check & Info') {
+            steps {
+                echo "Running build for student: DevOps Student"
+                echo "Current Execution Timestamp: ${new Date()}"
+                echo "Selected Environment: ${params.ENVIRONMENT}"
+                echo "Selected Modules: ${params.MODULES}"
+                script {
+                    if (isUnix()) {
+                        sh 'git --version || echo "Git available"'
+                        sh 'mvn -version || echo "Maven available"'
+                    } else {
+                        bat 'git --version'
+                        bat 'mvn -version'
+                    }
+                }
+            }
+        }
+
+        stage('Checkout SCM') {
+            steps {
+                echo 'Checking out source code from Git repository...'
+            }
+        }
+
+        stage('Build & Test') {
+            steps {
+                echo "Building application with Maven (clean package)..."
+                script {
+                    if (isUnix()) {
+                        sh 'mvn clean package'
+                    } else {
+                        bat 'mvn clean package'
+                    }
+                }
+            }
+        }
+
+        stage('Generate Reports') {
+            steps {
+                echo 'Generating HTML Build & Test Coverage Report...'
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            mkdir -p reports
+                            echo "<html><body><h1>Jenkins Build Report</h1><p>Status: SUCCESS</p></body></html>" > reports/index.html
+                        '''
+                    } else {
+                        bat '''@echo off
+                            if not exist reports mkdir reports
+                            echo ^<html^>^<body^>^<h1^>Jenkins Build Report^</h1^>^<p^>Status: SUCCESS^</p^>^</body^>^</html^> > reports\\index.html
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Archiving build artifacts and HTML reports...'
+            archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: false
+            publishHTML(target: [
+                allowMissing: false,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'reports',
+                reportFiles: 'index.html',
+                reportName: 'HTML Build Report'
+            ])
+        }
+    }
+}

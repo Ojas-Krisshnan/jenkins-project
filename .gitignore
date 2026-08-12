@@ -1,0 +1,32 @@
+# Target build directories
+target/
+build/
+bin/
+dist/
+*.jar
+*.war
+*.ear
+*.class
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+env/
+ENV/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Jenkins & IDE
+.hs_err_pid*
+*.log
+.idea/
+.vscode/
+*.swp
+*.bak
+.DS_Store

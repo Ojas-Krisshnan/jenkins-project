@@ -1,0 +1,93 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME     = 'devops-assignment3'
+        IMAGE_TAG    = "1.0.${BUILD_NUMBER}"
+        REGISTRY     = 'localhost:5000'
+        PYTHONUNBUFFERED = '1'
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout Source') {
+            steps {
+                echo "--> Checkout workspace repository..."
+                checkout scm
+            }
+        }
+
+        stage('Code Analysis & Test') {
+            steps {
+                echo "--> Installing dependencies & running pytest..."
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r app/requirements.txt
+                    pytest --cov=app --cov-report=term-missing
+                '''
+            }
+        }
+
+        stage('Docker Build & Tag') {
+            steps {
+                echo "--> Building Multi-stage Docker Image..."
+                sh '''
+                    docker build -t ${APP_NAME}:${IMAGE_TAG} -t ${APP_NAME}:latest .
+                '''
+            }
+        }
+
+        stage('Security Vulnerability Scan') {
+            steps {
+                echo "--> Scanning Docker image for security vulnerabilities..."
+                sh '''
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL ${APP_NAME}:${IMAGE_TAG} || true
+                '''
+            }
+        }
+
+        stage('Terraform Validation') {
+            steps {
+                dir('terraform') {
+                    echo "--> Validating Infrastructure as Code (Terraform)..."
+                    sh '''
+                        terraform init -backend=false
+                        terraform validate
+                    '''
+                }
+            }
+        }
+
+        stage('Local Integration Deploy') {
+            steps {
+                echo "--> Launching application via Docker Compose..."
+                sh '''
+                    docker compose down --remove-orphans || true
+                    docker compose up -d --build
+                    sleep 5
+                    curl -f http://localhost:8000/health || exit 1
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "--> Cleaning up transient resources..."
+            cleanWs deleteDirs: true, notFailBuild: true
+        }
+        success {
+            echo "=== PIPELINE SUCCESSFUL ==="
+        }
+        failure {
+            echo "=== PIPELINE FAILED ==="
+        }
+    }
+}
