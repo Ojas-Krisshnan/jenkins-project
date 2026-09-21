@@ -1,0 +1,61 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+# ==========================================
+# Install Java 21
+# ==========================================
+- task: JavaToolInstaller@0
+  displayName: 'Install Java 21'
+  inputs:
+    versionSpec: '21'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+
+# ==========================================
+# Check Java and Maven
+# ==========================================
+- script: |
+    java -version
+    mvn -version
+  displayName: 'Check Java and Maven'
+
+
+# ==========================================
+# Maven Clean + Test + Package
+# ==========================================
+- task: Maven@4
+  displayName: 'Build with Maven'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean package'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.21'
+    mavenVersionOption: 'Default'
+
+
+# ==========================================
+# Show generated files
+# ==========================================
+- script: |
+    echo "Maven artifacts generated:"
+    find . -type f \( -name "*.jar" -o -name "*.war" \)
+  displayName: 'List Maven Artifacts'
+
+
+# ==========================================
+# Publish Maven Build Artifact
+# ==========================================
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish Maven Artifact'
+  inputs:
+    targetPath: '$(System.DefaultWorkingDirectory)/target'
+    artifact: 'maven-artifact'
+    publishLocation: 'pipeline'
