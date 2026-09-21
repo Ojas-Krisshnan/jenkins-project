@@ -27,12 +27,12 @@ steps:
 
 
 # ==========================================
-# Maven Clean + Test + Package
+# Maven Build
 # ==========================================
 - task: Maven@4
   displayName: 'Build with Maven'
   inputs:
-    mavenPomFile: 'pom.xml'
+    mavenPomFile: '01-Java-Maven-Declarative-Pipeline/pom.xml'
     goals: 'clean package'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
@@ -42,20 +42,20 @@ steps:
 
 
 # ==========================================
-# Show generated files
+# Find Generated Maven Artifacts
 # ==========================================
 - script: |
     echo "Maven artifacts generated:"
-    find . -type f \( -name "*.jar" -o -name "*.war" \)
+    find 01-Java-Maven-Declarative-Pipeline -type f \( -name "*.jar" -o -name "*.war" \)
   displayName: 'List Maven Artifacts'
 
 
 # ==========================================
-# Publish Maven Build Artifact
+# Publish Maven Artifact
 # ==========================================
 - task: PublishPipelineArtifact@1
   displayName: 'Publish Maven Artifact'
   inputs:
-    targetPath: '$(System.DefaultWorkingDirectory)/target'
+    targetPath: '01-Java-Maven-Declarative-Pipeline/target'
     artifact: 'maven-artifact'
     publishLocation: 'pipeline'
